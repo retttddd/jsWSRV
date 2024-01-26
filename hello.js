@@ -1,28 +1,37 @@
 const express = require("express");
 const bodyParser = require("body-parser");
+const ddb = require("./dynamo.js");
+
 const app = express();
+const PORT = 8000;
 
-let mockDB = [
-  { id: 1, pool_name: "Item 1" },
-  { id: 2, pool_name: "Item 2" },
-  { id: 3, pool_name: "Item 3" },
-];
-
-// logging middleware
-// app.use((req, res, next) => {
-//   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
-//   next();
-// });
-
-// parce middleware
 app.use(bodyParser.json());
 
-app.get("/api/data", (req, res) => {
-  console.log(`[${new Date().toISOString()}] GET /api/data`);
-  res.json(mockDB);
+app.get("/api/data", async (req, res) => {
+  try {
+    const dataFromDynamoDB = await ddb.getBatch({
+      pools: {
+        Keys: [
+          {
+            id: "1",
+          },
+          {
+            id: "2",
+          },
+        ],
+        ProjectionExpression: "id, pool_name",
+      },
+    });
+
+    console.log(`[${new Date().toISOString()}] GET /api/data`);
+    res.json(dataFromDynamoDB.Responses.pools);
+  } catch (error) {
+    console.error(`Error fetching data from DynamoDB: ${error}`);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
 });
 
-app.post("/api/data", (req, res) => {
+app.post("/api/data", async (req, res) => {
   const userData = req.body;
 
   console.log(
@@ -30,18 +39,9 @@ app.post("/api/data", (req, res) => {
     userData
   );
 
-  res.status(200).send({ message: "sent succesfully" });
+  res.status(200).send({ message: "sent successfully" });
 });
 
-// logging middleware
-// app.use((req, res, next) => {
-//   console.log(
-//     `[${new Date().toISOString()}] Responded with status ${res.statusCode}`
-//   );
-//   next();
-// });
-
-const PORT = 8000;
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
 });
